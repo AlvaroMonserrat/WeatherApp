@@ -16,12 +16,21 @@ import android.provider.Settings
 import android.util.Log
 import android.widget.Toast
 import com.google.android.gms.location.*
+
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
 import com.karumi.dexter.PermissionToken
 import com.karumi.dexter.listener.PermissionRequest
 import com.karumi.dexter.listener.multi.MultiplePermissionsListener
 import com.rrat.weatherapp.databinding.ActivityMainBinding
+import com.rrat.weatherapp.models.WeatherResponse
+import com.rrat.weatherapp.network.WeatherService
+import retrofit2.Call
+import retrofit2.Callback
+import retrofit2.Response
+import retrofit2.Retrofit
+import retrofit2.converter.gson.GsonConverterFactory
+
 
 class MainActivity : AppCompatActivity() {
 
@@ -59,6 +68,7 @@ class MainActivity : AppCompatActivity() {
                 override fun onPermissionsChecked(report: MultiplePermissionsReport?) {
                     if(report!!.areAllPermissionsGranted()){
                         //Get Localization
+                        Log.i("Response Result","INIT")
                         requestNewLocationData()
                     }
                 }
@@ -84,12 +94,43 @@ class MainActivity : AppCompatActivity() {
 
     private fun getLocationWeatherDetails(){
         if(Constants.isNetworkAvailable(this)){
-            Toast.makeText(
-                this,
-                "You have connected to the internet",
-                Toast.LENGTH_SHORT
-            ).show()
-            Log.i("Network", "Internet Available")
+            val retrofit : Retrofit = Retrofit.Builder()
+                    .baseUrl(Constants.BASE_URL)
+                    .addConverterFactory(GsonConverterFactory.create())
+                    .build()
+
+            val service: WeatherService = retrofit.create(WeatherService::class.java)
+
+            val listCall: Call<WeatherResponse> = service.getWeather(mLatitude, mLongitude, Constants.METRIC_UNIT, Constants.APP_ID)
+
+            listCall.enqueue(object: Callback<WeatherResponse>{
+                override fun onResponse(
+                    call: Call<WeatherResponse>,
+                    response: Response<WeatherResponse>
+                ) {
+                    if(response.isSuccessful){
+                        val weatherList: WeatherResponse? = response.body()
+                        Log.i("Response Result", "$weatherList")
+                    }else{
+                        when(response.code()){
+                            400 -> {
+                                Log.i("Error 400", "Bad Connection")
+                            }
+                            404 ->{
+                                Log.i("Error 404", "Not Found")
+                            }else ->{
+                            Log.i("Error Generic", "Generic  Error")
+                            }
+                        }
+                    }
+                }
+
+                override fun onFailure(call: Call<WeatherResponse>, t: Throwable) {
+                    Log.i("Error onFailure", t.message.toString())
+                }
+
+            })
+
         }else{
             Toast.makeText(
                 this,
@@ -124,18 +165,21 @@ class MainActivity : AppCompatActivity() {
 
     @SuppressLint("MissingPermission")
     private fun requestNewLocationData(){
+
         val mLocationRequest = LocationRequest()
         mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        mLocationRequest.interval = 1000
-        mLocationRequest.numUpdates = 1
 
+        //mLocationRequest.interval = 1000
+        //mLocationRequest.numUpdates = 1
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        Log.i("Response Result","Latitude Longitude")
         mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallBack, Looper.myLooper())
 
     }
 
     private val mLocationCallBack = object: LocationCallback(){
-        override fun onLocationResult(locationRestult: LocationResult?) {
-            val mLastLocation: Location = locationRestult!!.lastLocation
+        override fun onLocationResult(locationResult: LocationResult?) {
+            val mLastLocation: Location = locationResult!!.lastLocation
             mLatitude = mLastLocation.latitude
             Log.i("Current Latitude", "$mLatitude")
             mLongitude = mLastLocation.longitude
