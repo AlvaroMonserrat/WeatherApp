@@ -161,7 +161,7 @@
                     android:orientation="vertical">
 
                     <TextView
-                        android:id="@+id/textViewTemperature"
+                        android:id="@+id/textViewTempMin"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="end"
@@ -172,7 +172,7 @@
                         />
 
                     <TextView
-                        android:id="@+id/textViewTempDescription"
+                        android:id="@+id/textViewTempMax"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:layout_gravity="end"
@@ -231,7 +231,7 @@
                         android:layout_gravity="end"
                         android:textColor="@color/secondary_text_color"
                         android:textSize="16sp"
-                        tools:text="miles/hour"/>
+                        android:text="miles/hour"/>
                 </LinearLayout>
             </LinearLayout>
         </androidx.cardview.widget.CardView>
@@ -320,7 +320,7 @@
                         android:id="@+id/imageViewSunrise"
                         android:layout_width="50dp"
                         android:layout_height="50dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_margin="4dp"
                         android:src="@drawable/sunrise"
                         />
 
@@ -330,6 +330,7 @@
                         android:layout_height="wrap_content"
                         android:textColor="@color/secondary_text_color"
                         android:textSize="16sp"
+                        android:gravity="center"
                         tools:text="Sunrise"
                         />
 
@@ -345,7 +346,7 @@
                         android:id="@+id/imageViewSunset"
                         android:layout_width="50dp"
                         android:layout_height="50dp"
-                        android:layout_marginEnd="8dp"
+                        android:layout_margin="4dp"
                         android:src="@drawable/sunset"
                         />
 
@@ -355,6 +356,7 @@
                         android:layout_height="wrap_content"
                         android:textColor="@color/secondary_text_color"
                         android:textSize="16sp"
+                        android:gravity="center"
                         tools:text="Sunset"
                         />
 

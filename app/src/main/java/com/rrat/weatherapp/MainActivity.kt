@@ -31,6 +31,8 @@ import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
+import java.text.SimpleDateFormat
+import java.util.*
 
 
 class MainActivity : AppCompatActivity() {
@@ -216,8 +218,38 @@ class MainActivity : AppCompatActivity() {
             binding.textViewMain.text = weatherList.weather[i].main
             binding.textViewMainDescription.text = weatherList.weather[i].description
 
-            binding.textViewTemperature.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
+            binding.textViewHumidity.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
+            binding.textViewHumidityDescription.text = weatherList.main.humidity.toString() + " per cent"
 
+
+            binding.textViewTempMax.text = weatherList.main.temp_max.toString() + " max"
+            binding.textViewTempMin.text = weatherList.main.temp_min.toString() + " min"
+
+            binding.textViewWind.text = weatherList.wind.speed.toString()
+
+            binding.textViewName.text = weatherList.name
+            binding.textViewCountry.text = weatherList.sys.country
+
+            binding.textViewSunrise.text = unixTime(weatherList.sys.sunrise)
+            binding.textViewSunset.text = unixTime(weatherList.sys.sunset)
+
+            when(weatherList.weather[i].icon){
+                "01d" -> binding.imageViewMain.setImageResource(R.drawable.sunny)
+                "02d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "03d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "04d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "04n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "10d" -> binding.imageViewMain.setImageResource(R.drawable.rain)
+                "11d" -> binding.imageViewMain.setImageResource(R.drawable.storm)
+                "13d" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
+                "01n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "02n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "03n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "10n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                "11n" -> binding.imageViewMain.setImageResource(R.drawable.rain)
+                "13N" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
+
+             }
         }
 
     }
@@ -228,6 +260,14 @@ class MainActivity : AppCompatActivity() {
             value = "°F"
         }
         return value
+    }
+
+    private fun unixTime(timex: Long): String?{
+        val date = Date(timex * 1000L)
+        val sdf = SimpleDateFormat("HH:mm", Locale.UK)
+        sdf.timeZone = TimeZone.getDefault()
+        return sdf.format(date)
+
     }
 
 }
