@@ -7,6 +7,7 @@ import android.app.Dialog
 import android.content.ActivityNotFoundException
 import android.content.Context
 import android.content.Intent
+import android.content.SharedPreferences
 import android.location.Location
 import android.location.LocationManager
 import android.net.Uri
@@ -15,8 +16,11 @@ import android.os.Bundle
 import android.os.Looper
 import android.provider.Settings
 import android.util.Log
+import android.view.Menu
+import android.view.MenuItem
 import android.widget.Toast
 import com.google.android.gms.location.*
+import com.google.gson.Gson
 
 import com.karumi.dexter.Dexter
 import com.karumi.dexter.MultiplePermissionsReport
@@ -41,6 +45,8 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var mFusedLocationClient: FusedLocationProviderClient
 
+    private lateinit var mSharedPreferences : SharedPreferences
+
     private var mProgressDialog: Dialog? = null
 
     private var mLatitude : Double = 0.0
@@ -54,6 +60,10 @@ class MainActivity : AppCompatActivity() {
         setContentView(binding.root)
 
         mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+
+        mSharedPreferences = getSharedPreferences(Constants.PREFERENCE_NAME, Context.MODE_PRIVATE)
+
+        setupUI()
 
         if(!isLocationEnable()){
             Toast.makeText(
@@ -74,7 +84,6 @@ class MainActivity : AppCompatActivity() {
                     if(report!!.areAllPermissionsGranted()){
                         //Get Localization
                         Log.i("Response Result","INIT")
-                        showCustomProgressDialog()
                         requestNewLocationData()
                     }
                 }
@@ -88,6 +97,23 @@ class MainActivity : AppCompatActivity() {
         }
 
     }
+
+
+
+    override fun onCreateOptionsMenu(menu: Menu?): Boolean {
+        menuInflater.inflate(R.menu.menu_main, menu)
+        return super.onCreateOptionsMenu(menu)
+    }
+
+    override fun onOptionsItemSelected(item: MenuItem): Boolean {
+        return when(item.itemId){
+            R.id.action_refresh ->{
+                requestUpdateLocationData()
+                true
+            }else -> super.onOptionsItemSelected(item)
+        }
+    }
+
 
     private fun isLocationEnable(): Boolean{
         // This provides access to the system location services.
@@ -122,6 +148,8 @@ class MainActivity : AppCompatActivity() {
 
             val listCall: Call<WeatherResponse> = service.getWeather(mLatitude, mLongitude, Constants.METRIC_UNIT, Constants.APP_ID)
 
+            showCustomProgressDialog()
+
             listCall.enqueue(object: Callback<WeatherResponse>{
                 override fun onResponse(
                     call: Call<WeatherResponse>,
@@ -130,7 +158,15 @@ class MainActivity : AppCompatActivity() {
                     hideProgressDialog()
                     if(response!!.isSuccessful){
                         val weatherList: WeatherResponse? = response.body()
-                        setupUI(weatherList!!)
+
+                        val weatherResponseJsonString = Gson().toJson(weatherList)
+                        val editor = mSharedPreferences.edit()
+                        editor.putString(Constants.WEATHER_RESPONSE_DATA, weatherResponseJsonString)
+                        editor.apply()
+
+                        setupUI()
+
+
                         Log.i("Response Result", "$weatherList")
                     }else{
                         when(response.code()){
@@ -199,6 +235,19 @@ class MainActivity : AppCompatActivity() {
 
     }
 
+    @SuppressLint("MissingPermission")
+    private fun requestUpdateLocationData(){
+
+        val mLocationRequest = LocationRequest()
+        mLocationRequest.priority = LocationRequest.PRIORITY_HIGH_ACCURACY
+
+        mLocationRequest.interval = 500
+        mLocationRequest.numUpdates = 1
+        mFusedLocationClient = LocationServices.getFusedLocationProviderClient(this)
+        Log.i("Response Result","Latitude Longitude")
+        mFusedLocationClient.requestLocationUpdates(mLocationRequest, mLocationCallBack, Looper.getMainLooper())
+
+    }
     private val mLocationCallBack = object: LocationCallback(){
         override fun onLocationResult(locationResult: LocationResult?) {
             val mLastLocation: Location = locationResult!!.lastLocation
@@ -211,46 +260,54 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
-    private fun setupUI(weatherList: WeatherResponse){
+    private fun setupUI() {
 
-        for(i in weatherList.weather.indices){
-            Log.i("Weather Name", weatherList.weather.toString())
-            binding.textViewMain.text = weatherList.weather[i].main
-            binding.textViewMainDescription.text = weatherList.weather[i].description
+        val weatherResponseJsonString = mSharedPreferences.getString(Constants.WEATHER_RESPONSE_DATA, "")
 
-            binding.textViewHumidity.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
-            binding.textViewHumidityDescription.text = weatherList.main.humidity.toString() + " per cent"
+        if(!weatherResponseJsonString.isNullOrEmpty()){
+            val weatherList = Gson().fromJson(weatherResponseJsonString, WeatherResponse::class.java)
+
+            for(i in weatherList.weather.indices){
+                Log.i("Weather Name", weatherList.weather.toString())
+                binding.textViewMain.text = weatherList.weather[i].main
+                binding.textViewMainDescription.text = weatherList.weather[i].description
+
+                binding.textViewHumidity.text = weatherList.main.temp.toString() + getUnit(application.resources.configuration.locales.toString())
+                binding.textViewHumidityDescription.text = weatherList.main.humidity.toString() + " per cent"
 
 
-            binding.textViewTempMax.text = weatherList.main.temp_max.toString() + " max"
-            binding.textViewTempMin.text = weatherList.main.temp_min.toString() + " min"
+                binding.textViewTempMax.text = weatherList.main.temp_max.toString() + " max"
+                binding.textViewTempMin.text = weatherList.main.temp_min.toString() + " min"
 
-            binding.textViewWind.text = weatherList.wind.speed.toString()
+                binding.textViewWind.text = weatherList.wind.speed.toString()
 
-            binding.textViewName.text = weatherList.name
-            binding.textViewCountry.text = weatherList.sys.country
+                binding.textViewName.text = weatherList.name
+                binding.textViewCountry.text = weatherList.sys.country
 
-            binding.textViewSunrise.text = unixTime(weatherList.sys.sunrise)
-            binding.textViewSunset.text = unixTime(weatherList.sys.sunset)
+                binding.textViewSunrise.text = unixTime(weatherList.sys.sunrise)
+                binding.textViewSunset.text = unixTime(weatherList.sys.sunset)
 
-            when(weatherList.weather[i].icon){
-                "01d" -> binding.imageViewMain.setImageResource(R.drawable.sunny)
-                "02d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "03d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "04d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "04n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "10d" -> binding.imageViewMain.setImageResource(R.drawable.rain)
-                "11d" -> binding.imageViewMain.setImageResource(R.drawable.storm)
-                "13d" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
-                "01n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "02n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "03n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "10n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
-                "11n" -> binding.imageViewMain.setImageResource(R.drawable.rain)
-                "13N" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
+                when(weatherList.weather[i].icon){
+                    "01d" -> binding.imageViewMain.setImageResource(R.drawable.sunny)
+                    "02d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "03d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "04d" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "04n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "10d" -> binding.imageViewMain.setImageResource(R.drawable.rain)
+                    "11d" -> binding.imageViewMain.setImageResource(R.drawable.storm)
+                    "13d" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
+                    "01n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "02n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "03n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "10n" -> binding.imageViewMain.setImageResource(R.drawable.cloud)
+                    "11n" -> binding.imageViewMain.setImageResource(R.drawable.rain)
+                    "13N" -> binding.imageViewMain.setImageResource(R.drawable.snowflake)
 
-             }
+                }
+            }
         }
+
+
 
     }
 
